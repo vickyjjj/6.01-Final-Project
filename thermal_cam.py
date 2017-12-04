@@ -60,18 +60,17 @@ def find_peaks(pixels):
     peaks = np.zeros((8,8))
     for i in range(8):
         for j in range(8):
-            percentage_diff = (np_pixels[i][j] - np_pixels[i][j-1]) / np_pixels[i][j-1] * 100
-            print(percentage_diff, in_peak)
-            if abs(percentage_diff) > 5:
-                #num = abs(np_pixels[i][j-1] - np_pixels[i][j])
-                #if num >= 1.5:
-                    #peaks[i][j] = 1
-                if peaks[i][j-1] != 1:
-                    if not in_peak:
+            if np_pixels[i][j] >= 26:
+                num = abs(np_pixels[i][j-1] - np_pixels[i][j]) / np_pixels[i][j] * 100
+                if num >= 3:
+                    if peaks[i][j-1] != 1:
                         peaks[i][j] = 1
-                        in_peak = True
-                    else:
-                        in_peak = False
+##                if peaks[i][j-1] != 1:
+##                    if not in_peak:
+##                        peaks[i][j] = 1
+##                        in_peak = True
+##                    else:
+##                        in_peak = False
     temp_peaks = []
 ##    if np.argmax(pixels) < 28:
 ##        return peaks
