@@ -24,43 +24,91 @@ from colour import Color
 
 def basic_obs_model(state):
     if state == 0:
-        triangle = triangle_dist(0, 1, loLimit=0)
+        triangle = triangle_dist(0, 1, hiLimit=1)
         uni = uniform_dist(range(8))
         return mixture(triangle, uni, .9)
     elif state == 1:
-        triangle = triangle_dist(1, 2)
+        triangle = triangle_dist(1, 2, loLimit = 1, hiLimit = 2)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .9)
+        return mixture(triangle, uni, .6)
     elif state == 2:
-        triangle = triangle_dist(2, 2)
+        triangle = triangle_dist(2, 2, hiLimit=3)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .9)
+        return mixture(triangle, uni, .6)
     elif state == 3:
         triangle = triangle_dist(3, 2, hiLimit=4)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .9)
+        return mixture(triangle, uni, .6)
     else:
         return uniform_dist(range(8))
     
 def update_prior(prior, peaks):
-    updated_prior = bayes_rule(prior, basic_obs_model, sum(peaks))
-    return updated_prior
+    for peak in peaks:
+        print('peaks', peak)
+        prior = bayes_rule(prior, basic_obs_model, sum(peak))
+    return prior
 
 def find_peaks(pixels):
+    in_peak = False
     np_pixels = np.asarray(pixels)
     np_pixels = np_pixels.reshape((8,8))
-    np_pixels_avg = np.average(np_pixels, axis=1)
-    peaks = np.zeros(8)
-    for i in range(len(np_pixels_avg)):
-        if np_pixels_avg[i]>=28.2:
-            peaks[i] = 1
-    return peaks
+    np_pixels = np_pixels.transpose()
+
+    maximum = np.argmax(pixels)
+    minimum = np.argmin(pixels)
+    #np_pixels_avg = np.average(np_pixels, axis=1)
+    peaks = np.zeros((8,8))
+    for i in range(8):
+        for j in range(8):
+            percentage_diff = (np_pixels[i][j] - np_pixels[i][j-1]) / np_pixels[i][j-1] * 100
+            print(percentage_diff, in_peak)
+            if abs(percentage_diff) > 5:
+                #num = abs(np_pixels[i][j-1] - np_pixels[i][j])
+                #if num >= 1.5:
+                    #peaks[i][j] = 1
+                if peaks[i][j-1] != 1:
+                    if not in_peak:
+                        peaks[i][j] = 1
+                        in_peak = True
+                    else:
+                        in_peak = False
+    temp_peaks = []
+##    if np.argmax(pixels) < 28:
+##        return peaks
+##    else:
+##        for row in peaks:
+##            counter = sum(row)
+##            if counter != 0 and counter < 5:
+##                temp_peaks.append(row)
+##        return temp_peaks
+    #get rid of extraneous rows that do not provide valuable information
+    for x in range(len(peaks)):
+        #if this row is one of the "extreme" rows, check it
+        if x < 3 or x > 4:
+            row = peaks[x]
+            counter = sum(row)
+            if counter != 0 and counter < 5:
+                temp_peaks.append(row)
+        else:
+            #otherwise, automatically append to array to be returned
+            temp_peaks.append(row)
+    return temp_peaks
+    #return peaks
 
 def find_confident(belief):
     print('max_prob:, ',belief.prob(belief.max_prob_elt()))
     if belief.prob(belief.max_prob_elt()) > .9:
         return belief.max_prob_elt()
-    
+
+def plot_data(data):
+    np_pixels = np.asarray(data)
+    np_pixels = np_pixels.reshape((8,8))
+    np_pixels = np_pixels.transpose()
+    for j in range(8):
+        row = plt.plot(range(8), np_pixels[j][:], label = 'row ' + str(j))
+    #plt.legend(handles=[plots])
+    plt.title('Finger rows')
+    plt.show()   
 #low range of the sensor (this will be blue on the screen)
 MINTEMP = 22
 
@@ -172,6 +220,8 @@ while(1):
     #read the pixels
     print('Show a number: ')
     pixels = sensor.readPixels()
+    #plot_data(pixels)
+    time.sleep(1)
     peaks = find_peaks(pixels)
     prior = update_prior(prior, peaks)
     print(prior)
