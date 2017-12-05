@@ -47,36 +47,40 @@ def find_peaks(pixels):
     peaks = np.zeros((8,8))
     for i in range(8):
         for j in range(8):
-            if np_pixels[i][j] >= 27: 
-                peaks[i][j] == 1
+            if np_pixels[i][j] >= 29: 
+                peaks[i][j] = 1
+
+    print("original reading", peaks)
 
     in_region = False
+    temp_peaks = []
+
+    counter = 0
 
     for k in range(8):
         for l in range(8):
             el = peaks[k][l]
+
             if el == 1:
+                counter += 1
                 if in_region:
                     peaks[k][l] = 0
                 else:
                     in_region = True
             elif el == 0:
                 if in_region:
-                    in_region = False            
-    
-    temp_peaks = []
-
-    #get rid of extraneous rows that do not provide valuable information
-    for x in range(len(peaks)):
-        #if this row is one of the "extreme" rows, check it
-        if x < 3 or x > 4:
-            row = peaks[x]
-            counter = sum(row)
+                    in_region = False
+        #check if row's values are significant to be counted 
+        if k < 3 or k > 4:
+            row = peaks[k]
             if counter != 0 and counter < 5:
+                print("row ", k, " was appended")
                 temp_peaks.append(row)
         else:
-            #otherwise, automatically append to array to be returned
+            print("row ", k, " was appended")
             temp_peaks.append(row)
+        counter = 0      
+    
     return temp_peaks
     #return peaks
 
@@ -164,6 +168,17 @@ while(1):
     elt = find_confident(prior)
     if elt != None:
         print('Your number is %d'%elt)
+
+        #show display again after printing number of fingers
+        pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
+        bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
+        for ix, row in enumerate(bicubic):
+            for jx, pixel in enumerate(row):
+                    pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
+        pygame.display.update()
+
+        time.sleep(3)
+        
         break
     pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
     

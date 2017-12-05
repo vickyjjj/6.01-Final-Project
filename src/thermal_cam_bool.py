@@ -13,19 +13,19 @@ def basic_obs_model(state):
     if state == 0:
         triangle = triangle_dist(0, 1, hiLimit=1)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .9)
+        return mixture(triangle, uni, .4)
     elif state == 1:
         triangle = triangle_dist(1, 2, loLimit = 1, hiLimit = 2)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .6)
+        return mixture(triangle, uni, .4)
     elif state == 2:
         triangle = triangle_dist(2, 2, hiLimit=3)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .6)
+        return mixture(triangle, uni, .4)
     elif state == 3:
         triangle = triangle_dist(3, 2, hiLimit=4)
         uni = uniform_dist(range(8))
-        return mixture(triangle, uni, .6)
+        return mixture(triangle, uni, .4)
     else:
         return uniform_dist(range(8))
     
@@ -49,7 +49,7 @@ def find_peaks(pixels):
     peaks = np.zeros((8,8))
     for i in range(8):
         for j in range(8):
-            if np_pixels[i][j] >= 26:
+            if np_pixels[i][j] >= 29:
                 num = abs(np_pixels[i][j-1] - np_pixels[i][j]) / np_pixels[i][j] * 100
                 if num >= 5:
                     if not in_peak:
@@ -64,6 +64,7 @@ def find_peaks(pixels):
                     in_peak = False
                 elif in_peak:
                     in_peak = False
+    print(peaks)
     
     temp_peaks = []
 
@@ -78,6 +79,7 @@ def find_peaks(pixels):
         else:
             #otherwise, automatically append to array to be returned
             temp_peaks.append(row)
+            
     return temp_peaks
     #return peaks
 
@@ -165,6 +167,17 @@ while(1):
     elt = find_confident(prior)
     if elt != None:
         print('Your number is %d'%elt)
+
+        #show display again after printing number of fingers
+        pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
+        bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
+        for ix, row in enumerate(bicubic):
+            for jx, pixel in enumerate(row):
+                    pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
+        pygame.display.update()
+
+        time.sleep(3)
+        
         break
     pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
     
