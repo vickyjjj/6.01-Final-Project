@@ -8,6 +8,9 @@ import numpy as np
 from scipy.interpolate import griddata
 from lib601.dist import *
 from colour import Color
+import sys
+sys.path.append("/usr/lib/python3/dist-packages")
+import espeak
 
 def basic_obs_model(state):
     if state == 0:
@@ -43,21 +46,30 @@ def find_peaks(pixels):
     np_pixels = np_pixels.reshape((8,8))
     np_pixels = np_pixels.transpose()
 
-    maximum = np.argmax(pixels)
-    minimum = np.argmin(pixels)
+    tot_max = np.argmax(np_pixels)
+    tot_min = np.argmin(np_pixels)
+    print(tot_max, tot_min)
+
+    #for using percentage difference, do not use absolute temperature
+    #subtract minimum of row from all elements of the row for greater range
+    for a in range(8):
+        row = np_pixels[a]
+        minimum = np.argmin(row)
+        for b in range(8):
+            np_pixels[a][b] -= minimum
 
     peaks = np.zeros((8,8))
     for i in range(8):
         for j in range(8):
-            if np_pixels[i][j] >= 29:
-                num = abs(np_pixels[i][j-1] - np_pixels[i][j]) / np_pixels[i][j] * 100
-                if num >= 5:
-                    if not in_peak:
-                        if peaks[i][j-1] != 1:
-                            peaks[i][j] = 1
-                            in_peak = True
-                    else:
-                        possibly_exiting = True
+            num = abs(np_pixels[i][j-1] - np_pixels[i][j]) / np_pixels[i][j] * 100
+            print("percentage: ", num)
+            if num >= 20:
+                if not in_peak:
+                    if peaks[i][j-1] != 1:
+                        peaks[i][j] = 1
+                        in_peak = True
+                else:
+                    possibly_exiting = True
             else:
                 if possibly_exiting:
                     possibly_exiting = False
@@ -151,6 +163,8 @@ time.sleep(.1)
 
 print("Show number 1")
 
+os.system("espeak 'Please, show a number.'")
+
 three_fingers = np.zeros(64)
 
 prior = DDist({0:.25, 1:.25, 2:.25, 3:.25})
@@ -165,8 +179,11 @@ while(1):
     prior = update_prior(prior, peaks)
     print(prior)
     elt = find_confident(prior)
+    string_elt = str(elt)
+    message = "Your number is " + string_elt
     if elt != None:
         print('Your number is %d'%elt)
+        os.system('espeak "{}"'.format(message))
 
         #show display again after printing number of fingers
         pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
@@ -175,6 +192,8 @@ while(1):
             for jx, pixel in enumerate(row):
                     pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
         pygame.display.update()
+
+        pygame.image.save(img, "example_empty_reading.jpg")
 
         time.sleep(3)
         

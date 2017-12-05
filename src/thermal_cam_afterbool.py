@@ -8,6 +8,9 @@ import numpy as np
 from scipy.interpolate import griddata
 from lib601.dist import *
 from colour import Color
+import sys
+sys.path.append("/usr/lib/python3/dist-packages")
+import espeak
 
 def basic_obs_model(state):
     if state == 0:
@@ -41,14 +44,11 @@ def find_peaks(pixels):
     np_pixels = np_pixels.reshape((8,8))
     np_pixels = np_pixels.transpose()
 
-    maximum = np.argmax(pixels)
-    minimum = np.argmin(pixels)
-
     peaks = np.zeros((8,8))
     for i in range(8):
         for j in range(8):
-            if np_pixels[i][j] >= 29: 
-                peaks[i][j] = 1
+            if np_pixels[i][j] >= 29: #uses absolute temperature; this method is incompatible with percentage
+                peaks[i][j] = 1            
 
     print("original reading", peaks)
 
@@ -63,6 +63,7 @@ def find_peaks(pixels):
 
             if el == 1:
                 counter += 1
+
                 if in_region:
                     peaks[k][l] = 0
                 else:
@@ -94,6 +95,7 @@ def plot_data(data):
     np_pixels = np_pixels.reshape((8,8))
     np_pixels = np_pixels.transpose()
     for j in range(8):
+
         row = plt.plot(range(8), np_pixels[j][:], label = 'row ' + str(j))
     #plt.legend(handles=[plots])
     plt.title('Finger rows')
@@ -155,9 +157,10 @@ print("Show number 1")
 three_fingers = np.zeros(64)
 
 prior = DDist({0:.25, 1:.25, 2:.25, 3:.25})
+os.system("espeak 'Please, show a number.'")
 while(1):
     #read the pixels
-    print('Show a number: ')
+    
     pixels = sensor.readPixels()
     
     #plot_data(pixels)
@@ -166,10 +169,13 @@ while(1):
     prior = update_prior(prior, peaks)
     print(prior)
     elt = find_confident(prior)
+    string_elt = str(elt)
+    message = "Your number is " + string_elt
     if elt != None:
         print('Your number is %d'%elt)
+        os.system('espeak "{}"'.format(message))
 
-        #show display again after printing number of fingers
+        #show display again after printing number of fingers for debugging/analysis
         pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
         bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
         for ix, row in enumerate(bicubic):
