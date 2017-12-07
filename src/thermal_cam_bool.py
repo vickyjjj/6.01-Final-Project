@@ -12,6 +12,8 @@ import sys
 sys.path.append("/usr/lib/python3/dist-packages")
 import espeak
 
+#average value whole image threshold to compare abs temp
+
 def basic_obs_model(state):
     if state == 0:
         triangle = triangle_dist(0, 1, hiLimit=1)
@@ -62,57 +64,48 @@ def find_peaks(pixels):
     for i in range(8):
         minimum = np.argmin(np_pixels[i])
         for j in range(8):
-            print("element ", i, j)
-            print(np_pixels[i][j])
-
-            #calculate percentage difference from previous cell
+            #calculate absolute difference from previous cell
             num = abs(np_pixels[i][j-1] - np_pixels[i][j])
-            print("Percentage difference: ", num)
-            #if the percentage difference is significant
-            if num >= 3:
-                print("temp diff is significant")
+
+            #if the absolute difference is significant
+            if num >= 3.5:
+
                 #if we aren't in a region
                 if not in_peak:
-                    print("getting into new region")
+
                     #if the previous cell isn't 1 and the region counter is 0
                     if peaks[i][j-1] != 1:
                         #this is a significant finger
                         peaks[i][j] = 1
-                        print("change made")
+
                         #we are now in a region
                         in_peak = True
+                        region_counter += 1
                 #otherwise if we are in a region
                 else:
-                    #POSSIBLY EXITING METHOD
-                    #print("possibly exiting")
-                    #possibly_exiting = True
-
-                    #YOU ARE EXITING METHOD
                     in_peak = False
-                region_counter += 1
+                    if region_counter >= 5:
+                        print("large region", region_counter)
+                        peaks[i] = np.zeros((8))
+                    region_counter = 0
             #else if the percentage difference is not significant
             else:
-                print("none")
-                #if we might be leaving a region
-                #POSSIBLY EXITING METHOD
-##                if possibly_exiting:
-##                    print("reached second point of possibly exiting")
-##                    #we have probably already left the region. 
-##                    possibly_exiting = False
-##                    in_peak = False
-##                #else if we are not leaving the region and the color is low
-##                elif np_pixels[i][j] - minimum <= 2:
-##                    #we are not in a region
-##                    in_peak = False
-
-                #YOU ARE EXITING METHOD
-            #if a very significant portion of the row is significant this is probably a fist or zero
-        if region_counter >= 5:
-            peaks[i] = np.zeros((8))
+                if in_peak and np_pixels[i][j] >= 3:
+                    region_counter += 1
+                else:
+                    in_peak = False
+                    if region_counter >= 5:
+                        print("large region", region_counter)
+                        peaks[i] = np.zeros((8))
+                    region_counter = 0
+                    
+        #reset variables for next row
         region_counter = 0
         in_peak = False
     
     temp_peaks = []
+    print(peaks)
+    time.sleep(1)
 
     #get rid of extraneous rows that do not provide valuable information
     for x in range(len(peaks)):
@@ -132,7 +125,7 @@ def find_peaks(pixels):
 
 def find_confident(belief):
     print('max_prob:, ',belief.prob(belief.max_prob_elt()))
-    if belief.prob(belief.max_prob_elt()) > .9:
+    if belief.prob(belief.max_prob_elt()) > .99:
         return belief.max_prob_elt()
 
 def plot_data(data):
@@ -227,7 +220,7 @@ while(1):
                     pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
         pygame.display.update()
         
-        time.sleep(3)
+        time.sleep(10000)
         
         break
     pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
