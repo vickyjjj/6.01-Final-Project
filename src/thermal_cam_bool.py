@@ -34,14 +34,10 @@ def basic_obs_model(state):
     
 def update_prior(prior, peaks):
     for peak in peaks:
-        print('peaks', peak)
         prior = bayes_rule(prior, basic_obs_model, sum(peak))
     return prior
 
-def find_peaks(pixels):
-    in_peak = False
-    possibly_exiting = False
-    
+def find_peaks(pixels):    
     np_pixels = np.asarray(pixels)
     np_pixels = np_pixels.reshape((8,8))
     np_pixels = np_pixels.transpose()
@@ -54,29 +50,67 @@ def find_peaks(pixels):
     #subtract minimum of row from all elements of the row for greater range
     for a in range(8):
         row = np_pixels[a]
-        minimum = np.argmin(row)
-        for b in range(8):
-            np_pixels[a][b] -= minimum
+        minimum = row[np.argmin(row)]
+        np_pixels[a] -= minimum
 
     peaks = np.zeros((8,8))
+
+    region_counter = 0
+    in_peak = False
+    possibly_exiting = False
+    
     for i in range(8):
+        minimum = np.argmin(np_pixels[i])
         for j in range(8):
-            num = abs(np_pixels[i][j-1] - np_pixels[i][j]) / np_pixels[i][j] * 100
-            print("percentage: ", num)
-            if num >= 20:
+            print("element ", i, j)
+            print(np_pixels[i][j])
+
+            #calculate percentage difference from previous cell
+            num = abs(np_pixels[i][j-1] - np_pixels[i][j])
+            print("Percentage difference: ", num)
+            #if the percentage difference is significant
+            if num >= 3:
+                print("temp diff is significant")
+                #if we aren't in a region
                 if not in_peak:
+                    print("getting into new region")
+                    #if the previous cell isn't 1 and the region counter is 0
                     if peaks[i][j-1] != 1:
+                        #this is a significant finger
                         peaks[i][j] = 1
+                        print("change made")
+                        #we are now in a region
                         in_peak = True
+                #otherwise if we are in a region
                 else:
-                    possibly_exiting = True
+                    #POSSIBLY EXITING METHOD
+                    #print("possibly exiting")
+                    #possibly_exiting = True
+
+                    #YOU ARE EXITING METHOD
+                    in_peak = False
+                region_counter += 1
+            #else if the percentage difference is not significant
             else:
-                if possibly_exiting:
-                    possibly_exiting = False
-                    in_peak = False
-                elif in_peak:
-                    in_peak = False
-    print(peaks)
+                print("none")
+                #if we might be leaving a region
+                #POSSIBLY EXITING METHOD
+##                if possibly_exiting:
+##                    print("reached second point of possibly exiting")
+##                    #we have probably already left the region. 
+##                    possibly_exiting = False
+##                    in_peak = False
+##                #else if we are not leaving the region and the color is low
+##                elif np_pixels[i][j] - minimum <= 2:
+##                    #we are not in a region
+##                    in_peak = False
+
+                #YOU ARE EXITING METHOD
+            #if a very significant portion of the row is significant this is probably a fist or zero
+        if region_counter >= 5:
+            peaks[i] = np.zeros((8))
+        region_counter = 0
+        in_peak = False
     
     temp_peaks = []
 
@@ -88,10 +122,11 @@ def find_peaks(pixels):
             counter = sum(row)
             if counter != 0 and counter < 5:
                 temp_peaks.append(row)
+                print("appended row ", x, row)
         else:
             #otherwise, automatically append to array to be returned
             temp_peaks.append(row)
-            
+            print("appended row ", x)
     return temp_peaks
     #return peaks
 
@@ -163,7 +198,7 @@ time.sleep(.1)
 
 print("Show number 1")
 
-os.system("espeak 'Please, show a number.'")
+#os.system("espeak 'Please, show a number.'")
 
 three_fingers = np.zeros(64)
 
@@ -177,13 +212,12 @@ while(1):
     time.sleep(1)
     peaks = find_peaks(pixels)
     prior = update_prior(prior, peaks)
-    print(prior)
     elt = find_confident(prior)
     string_elt = str(elt)
     message = "Your number is " + string_elt
     if elt != None:
         print('Your number is %d'%elt)
-        os.system('espeak "{}"'.format(message))
+        #os.system('espeak "{}"'.format(message))
 
         #show display again after printing number of fingers
         pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
@@ -192,9 +226,7 @@ while(1):
             for jx, pixel in enumerate(row):
                     pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
         pygame.display.update()
-
-        pygame.image.save(img, "example_empty_reading.jpg")
-
+        
         time.sleep(3)
         
         break
