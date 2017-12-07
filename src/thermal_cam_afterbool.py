@@ -34,7 +34,6 @@ def basic_obs_model(state):
     
 def update_prior(prior, peaks):
     for peak in peaks:
-        print('peaks', peak)
         prior = bayes_rule(prior, basic_obs_model, sum(peak))
     return prior
 
@@ -44,10 +43,24 @@ def find_peaks(pixels):
     np_pixels = np_pixels.reshape((8,8))
     np_pixels = np_pixels.transpose()
 
+    average = 0
+
+    #subtract minimum of row from all elements of the row for greater range
+    for a in range(8):
+        row = np_pixels[a]
+        minimum = row[np.argmin(row)]
+        np_pixels[a] -= minimum
+        for b in np_pixels[a]:
+            average += b
+
+    #find total average of picture
+    average /= 64
+
     peaks = np.zeros((8,8))
+    
     for i in range(8):
         for j in range(8):
-            if np_pixels[i][j] >= 29: #uses absolute temperature; this method is incompatible with percentage
+            if np_pixels[i][j] >= average:
                 peaks[i][j] = 1            
 
     print("original reading", peaks)
@@ -58,36 +71,49 @@ def find_peaks(pixels):
     counter = 0
 
     for k in range(8):
+        print("row before ", peaks[k])
         for l in range(8):
             el = peaks[k][l]
 
+            #if the element is a 1
             if el == 1:
                 counter += 1
 
+                #if we are in a region
                 if in_region:
+                    #change current element value so that the region stays at length 1
                     peaks[k][l] = 0
+                    print("element ", k, l, " changed to zero")
                 else:
+                    #otherwise, we have entered a new region; set boolean to true
                     in_region = True
+                    print("entered new region")
+            #else if the element is a 0
             elif el == 0:
-                if in_region:
-                    in_region = False
-        #check if row's values are significant to be counted 
+                in_region = False
+                print("in region is false")
+        #check if row's values are significant to be counted
+        
         if k < 3 or k > 4:
             row = peaks[k]
             if counter != 0 and counter < 5:
-                print("row ", k, " was appended")
+                print("appended row ", k, row)
                 temp_peaks.append(row)
         else:
-            print("row ", k, " was appended")
+            print("appended row ", k, row)
             temp_peaks.append(row)
-        counter = 0      
+        #reset variables
+        counter = 0
+        in_region = False
+        
+    print(temp_peaks)
     
     return temp_peaks
     #return peaks
 
 def find_confident(belief):
     print('max_prob:, ',belief.prob(belief.max_prob_elt()))
-    if belief.prob(belief.max_prob_elt()) > .9:
+    if belief.prob(belief.max_prob_elt()) > .99:
         return belief.max_prob_elt()
 
 def plot_data(data):
@@ -152,12 +178,12 @@ def map(x, in_min, in_max, out_min, out_max):
 #let the sensor initialize
 time.sleep(.1)
 
-print("Show number 1")
+print("Show number")
 
 three_fingers = np.zeros(64)
 
 prior = DDist({0:.25, 1:.25, 2:.25, 3:.25})
-os.system("espeak 'Please, show a number.'")
+#os.system("espeak 'Please, show a number.'")
 while(1):
     #read the pixels
     
@@ -167,13 +193,12 @@ while(1):
     time.sleep(1)
     peaks = find_peaks(pixels)
     prior = update_prior(prior, peaks)
-    print(prior)
     elt = find_confident(prior)
     string_elt = str(elt)
     message = "Your number is " + string_elt
     if elt != None:
         print('Your number is %d'%elt)
-        os.system('espeak "{}"'.format(message))
+        #os.system('espeak "{}"'.format(message))
 
         #show display again after printing number of fingers for debugging/analysis
         pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
