@@ -28,12 +28,12 @@ TIMESTEP_LENGTH = 0.1 # seconds
 
 
 # Where the robot will be in the world
-(x_min, x_max) = (0, 6.08)
+(x_min, x_max) = (0.5, 7.7)
 robotY = y = 0.5
 
 # Distance and Gain for Wall Following
 desired_right = 0.5
-Kp,Ka = (10.0,2.)
+Kp,Ka = (10.0,2.0)
 
 # Maximum "good" sonar reading
 sonar_max = 1.5
@@ -53,8 +53,8 @@ def clip(x, lo, hi):
 ####################################################################
 
 # Number of discrete locations and discrete observations
-num_states = 40
-num_observations = 12
+num_states = 100
+num_observations = 30
 
 # compatibility for some students who got the old names
 numStates = num_states
@@ -63,7 +63,7 @@ import lib601.dist as dist
 
 
 def obs_model(s):
-    tilt = triangle_dist(ideal[s],num_observations//6, 0, num_observations-1)
+    tilt = triangle_dist(ideal[s],num_observations//15, 0, num_observations-1)
     wall = uniform_dist(range(num_observations))
     p = .95
     final_dist = mixture(tilt, wall, p)
@@ -93,15 +93,14 @@ def confident_location(belief):
     sum_prob = 0
     for i in range(s_true-state_range, state_range+s_true):
         sum_prob += belief.prob(i)
-    print(sum_prob)
-    if sum_prob > 0.75:
+    if sum_prob > 0.9:
         return (s_true, True)
     return (-1, False)  
 
 
 uniform_init_dist = square_dist(0, num_states)
 
-REAL_ROBOT = True
+REAL_ROBOT = False
 
 ######################################################################
 ###
@@ -110,8 +109,7 @@ REAL_ROBOT = True
 ######################################################################
 
 # Robot's Ideal Readings
-#ideal = idealReadings.compute_ideal_readings(WORLD_FILE, x_min, x_max, robotY, num_states, num_observations)
-ideal = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+ideal = idealReadings.compute_ideal_readings(WORLD_FILE, x_min, x_max, robotY, num_states, num_observations)
 
 def get_parking_spot(ideal):
     avg = sum(ideal)/float(len(ideal))
@@ -249,12 +247,15 @@ def on_step(step_duration):
     robot.estimator.update(left)
     (location, robot.confident) = confident_location(robot.estimator.belief)
     
+    
+
     # GRAPHICS
     if robot.g is not None:
         # update world drawing
         # update belief graph
         robot.g.updateBeliefGraph([robot.estimator.belief.prob(s)
                                    for s in range(num_states)])
+
     # DL3 Angle Controller
     (distance_right, theta) = robot.get_distance_right_and_angle()
     if not theta:
@@ -262,8 +263,8 @@ def on_step(step_duration):
     e = desired_right-distance_right
     ROTATIONAL_VELOCITY = Kp*e - Ka*theta
     robot.fv = FORWARD_VELOCITY * robot.direction
-    robot.rv = ROTATIONAL_VELOCITY 
-##    robot.rv = 1
+    robot.rv = ROTATIONAL_VELOCITY
+
 def on_shutdown():
     pass
 
