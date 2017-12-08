@@ -13,7 +13,7 @@ for i in range(1):
     data_3 = np.loadtxt(three_fingers)
     data_3 = data_3.transpose()
     # plotting each data
-##    for j in range(8):
+##    for j in rang(8):
 ##        _1_finger = plt.plot(range(8), data_1[j][:], '.')
 ##        _2_finger = plt.plot(range(8), data_2[j][:], '*')
 ##        _3_finger = plt.plot(range(8), data_3[j][:], '-')
@@ -30,5 +30,4 @@ for i in range(1):
         plt.title('Finger %d rows'%number)
         plt.show()
         number += 1
-    
         

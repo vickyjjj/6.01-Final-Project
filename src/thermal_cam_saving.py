@@ -65,16 +65,25 @@ print("Show number 1")
 
 counter = 0
 
+array_var = []
+
 while (counter < 30):
     #read the pixels
     print('prepare finger')
     sleep(1)
     pixels = sensor.readPixels()
 
-    pixels_np = np.asarray(pixels)
-    pixels_np = pixels_np.reshape((8,8))
-    filename = "three_finger_" + str(counter) + ".txt"
-    np.savetxt(filename, pixels_np)
+    np_pixels = np.asarray(pixels)
+    np_pixels = np_pixels.reshape((8,8))
+    np_pixels = np_pixels.transpose()
+
+    #subtract minimum of row from all elements of the row for greater range
+    for a in range(8):
+        row = np_pixels[a]
+        minimum = row[np.argmin(row)]
+        np_pixels[a] -= minimum
+            
+    array_var.append(np.var(np_pixels))
     
     pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
     
@@ -89,3 +98,8 @@ while (counter < 30):
     pygame.display.update()
 
     counter += 1
+
+filename = "variances_for_one.txt"
+average = sum(array_var) / 30
+print(average)
+np.savetxt(filename, array_var)

@@ -61,7 +61,9 @@ def find_peaks(pixels):
     for i in range(8):
         for j in range(8):
             if np_pixels[i][j] >= average:
-                peaks[i][j] = 1            
+                peaks[i][j] = 1
+
+    print(np.var(np_pixels))
 
     print("original reading", peaks)
 
