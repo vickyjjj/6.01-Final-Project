@@ -56,16 +56,21 @@ def find_peaks(pixels):
     #find total average of picture
     average /= 64
 
+    variance = np.var(np_pixels)
+    print(variance)
+
     peaks = np.zeros((8,8))
+
+    if variance < 5:
+        return peaks
     
     for i in range(8):
         for j in range(8):
             if np_pixels[i][j] >= average:
                 peaks[i][j] = 1
 
-    print(np.var(np_pixels))
 
-    print("original reading", peaks)
+    #print("original reading", peaks)
 
     in_region = False
     temp_peaks = []
@@ -73,7 +78,6 @@ def find_peaks(pixels):
     counter = 0
 
     for k in range(8):
-        print("row before ", peaks[k])
         for l in range(8):
             el = peaks[k][l]
 
@@ -85,30 +89,30 @@ def find_peaks(pixels):
                 if in_region:
                     #change current element value so that the region stays at length 1
                     peaks[k][l] = 0
-                    print("element ", k, l, " changed to zero")
+                    #print("Zero changed at ", k, l)
                 else:
                     #otherwise, we have entered a new region; set boolean to true
                     in_region = True
-                    print("entered new region")
             #else if the element is a 0
-            elif el == 0:
+            else:
                 in_region = False
-                print("in region is false")
         #check if row's values are significant to be counted
         
         if k < 3 or k > 4:
             row = peaks[k]
-            if counter != 0 and counter < 5:
-                print("appended row ", k, row)
-                temp_peaks.append(row)
+            #print("Counter, row ", k, ":", counter)
+            if counter != 0 and counter < 4:
+                temp_peaks.append(peaks[k])
+                #print("appended: ", k, row)
         else:
-            print("appended row ", k, row)
-            temp_peaks.append(row)
+            temp_peaks.append(peaks[k])
+            #print("appended: ", k, row)
         #reset variables
         counter = 0
         in_region = False
         
-    print(temp_peaks)
+    #for i in temp_peaks:
+        #print(i)
     
     return temp_peaks
     #return peaks
@@ -117,17 +121,7 @@ def find_confident(belief):
     print('max_prob:, ',belief.prob(belief.max_prob_elt()))
     if belief.prob(belief.max_prob_elt()) > .99:
         return belief.max_prob_elt()
-
-def plot_data(data):
-    np_pixels = np.asarray(data)
-    np_pixels = np_pixels.reshape((8,8))
-    np_pixels = np_pixels.transpose()
-    for j in range(8):
-
-        row = plt.plot(range(8), np_pixels[j][:], label = 'row ' + str(j))
-    #plt.legend(handles=[plots])
-    plt.title('Finger rows')
-    plt.show()   
+  
 #low range of the sensor (this will be blue on the screen)
 MINTEMP = 22
 
