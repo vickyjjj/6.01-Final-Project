@@ -8,9 +8,10 @@ import numpy as np
 from scipy.interpolate import griddata
 from lib601.dist import *
 from colour import Color
-import sys
-sys.path.append("/usr/lib/python3/dist-packages")
-import espeak
+
+##import sys
+##sys.path.append("/usr/lib/python3/dist-packages")
+##import espeak
 
 def basic_obs_model(state):
     if state == 0:
@@ -174,7 +175,7 @@ def map(x, in_min, in_max, out_min, out_max):
 #let the sensor initialize
 time.sleep(.1)
 
-print("Show number")
+#print("Show number")
 
 three_fingers = np.zeros(64)
 
@@ -190,23 +191,28 @@ while(1):
     peaks = find_peaks(pixels)
     prior = update_prior(prior, peaks)
     elt = find_confident(prior)
+    file = open("refills.txt", "w")
+    if elt == None:
+        file.write("0")
+    else:
+        file.write(str(elt))
+    file.close()
     string_elt = str(elt)
-    message = "Your number is " + string_elt
-    if elt != None:
-        print('Your number is %d'%elt)
-        #os.system('espeak "{}"'.format(message))
-
-        #show display again after printing number of fingers for debugging/analysis
-        pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
-        bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
-        for ix, row in enumerate(bicubic):
-            for jx, pixel in enumerate(row):
-                    pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
-        pygame.display.update()
-
-        time.sleep(3)
-        
-        break
+##    if elt != None:
+##        print('Your number is %d'%elt)
+##
+##        #show display again after printing number of fingers for debugging/analysis
+##        pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
+##        bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
+##        for ix, row in enumerate(bicubic):
+##            for jx, pixel in enumerate(row):
+##                    pygame.draw.rect(lcd, colors[constrain(int(pixel), 0, COLORDEPTH- 1)], (displayPixelHeight * ix, displayPixelWidth * jx, displayPixelHeight, displayPixelWidth))
+##        pygame.display.update()
+##
+##        time.sleep(3)
+##        
+##        break
+    
     pixels = [map(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
     
     #perdorm interpolation
