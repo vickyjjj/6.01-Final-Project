@@ -191,6 +191,7 @@ def get_desired_table_state(ideal, table):
 def go_to_table(x, table_location, width):
     if not robot.got_drink:
         (location, _) = confident_location(robot.estimator.belief)
+        print("LOCATION", location)
         robot.direction = (table_location - location)/abs(table_location - location)
     else:
         robot.direction = (table_location - x)/abs(table_location - x)
@@ -200,7 +201,7 @@ def go_to_table(x, table_location, width):
     e = (desired_right-distance_right)*robot.direction
     ROTATIONAL_VELOCITY = Kp*e - Ka*theta
     if abs(robot.table_location - robot.pose.x) > width*.1:
-        robot.fv = FORWARD_VELOCITY * robot.direction
+        robot.fv = FORWARD_VELOCITY * robot.direction 
         robot.rv = ROTATIONAL_VELOCITY #* robot.direction
     elif abs(table_location - robot.pose.x) < width*.1:
         robot.fv = 0
@@ -230,13 +231,15 @@ def park(robot_angle, sonars, table):
                 if table:
                     if not robot.got_order:
                         robot.got_order = True
+                        robot.get_order = False
                     elif robot.deliver:
                         robot.delivered = True
                 else:
                     robot.got_drink = True
+                robot.back_ward = True
                 
 def get_out(robot_angle, sonars):
-    if sonars[4] < .7 and robot.in_park and not robot.rotate:
+    if not robot.rotate and sonars[4] < .7 and robot.in_park and not robot.rotate:
         robot.fv = -.2
         robot.rv = 0
     else:
@@ -251,15 +254,17 @@ def get_out(robot_angle, sonars):
             
 def go_to_bar(x, bar_location, width):
     robot.direction = (bar_location - x)/abs(bar_location - x)
+    print("X", x)
     (distance_right, theta) = robot.get_distance_right_and_angle()
     if not theta:
        theta = 0
     e = (desired_right-distance_right)*robot.direction
     ROTATIONAL_VELOCITY = Kp*e - Ka*theta
     if abs(robot.bar_location - robot.pose.x) > width*.1:
-        robot.fv = FORWARD_VELOCITY * robot.direction
+        robot.fv = FORWARD_VELOCITY * robot.direction * -1
         robot.rv = ROTATIONAL_VELOCITY #* robot.direction
-    elif abs(table_location - robot.pose.x) < width*.1:
+        print("fv", robot.fv, "rv", robot.rv, "pos x", robot.pose.x)
+    elif abs(robot.bar_location - robot.pose.x) < width*.1:
         robot.fv = 0
         robot.rotate = True
         robot.get_drink = True
@@ -286,20 +291,22 @@ def on_step(step_duration):
     width = (x_max - x_min)/(num_states-1)
     if robot.confident:
         if not robot.get_order and not robot.back_ward:
-            print('I am going to table for first time')
+            print("1")
             go_to_table(robot.pose.x+robot.position_delta, robot.table_location, width)
-        elif not robot.in_park and robot.get_order:
-            print('I am parking in table')
+        elif not robot.in_park and robot.get_order: 
+            print("2")
             park(robot.pose[2], sonars, True)
-        elif robot.in_park and not robot.get_drink:
-            print('I am getting out')
+        elif robot.in_park and not robot.get_drink: 
+            print("3")
             get_out(robot.pose[2], sonars)
-        elif robot.got_order and not robot.get_drink:
-            print('I am going to bar')
+        elif robot.got_order and not robot.get_drink: #THE ROBOT WORKS UP UNTIL HERE
+            print('4')
+            print(robot.position_delta)
             go_to_bar(robot.pose.x+robot.position_delta, robot.bar_location, width)
+            #go_to_bar(robot.pose.x, robot.bar_location, width)
         elif robot.rotate and robot.get_drink:
             print('I am parking in bar')
-            park(robot.pose[2], sonar, False)
+            park(robot.pose[2], sonars, False)
         elif robot.in_park and robot.got_drink:
             print('I am getting outa bar')
             get_out(robot.pose[2], sonars)
@@ -307,15 +314,15 @@ def on_step(step_duration):
             print('I am delivering')
             go_to_table(robot.pose.x+robot.position_delta, robot.table_location, width)
         elif not robot.in_park and robot.deliver:
-            print('I am parking')
+            print('I am parking at table to deliver')
             park(robot.pose[2], sonars, True)
         elif robot.delivered and robot.in_park:
-            print('I am getting out')
+            print('I am getting out of table to deliver')
             get_out(robot.pose[2], sonars)
         elif robot.delivered and not robot.in_park:
             print('I am going to start location ')
             start_location = 0
-            go_to_start(robot.pose.x+robot.position_delta, start_location, width)
+            #go_to_start(robot.pose.x+robot.position_delta, start_location, width)
         
         return
 
@@ -356,6 +363,7 @@ def on_step(step_duration):
     (location, robot.confident) = confident_location(robot.estimator.belief)
     if robot.confident:
         robot.position_delta = location - robot.pose.x
+        print("location", location, "pos x", robot.pose.x, "delta", robot.position_delta)
     # GRAPHICS
     if robot.g is not None:
         # update world drawing
