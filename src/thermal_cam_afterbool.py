@@ -119,7 +119,7 @@ def find_peaks(pixels):
     #return peaks
 
 def find_confident(belief):
-    print('max_prob:, ',belief.prob(belief.max_prob_elt()))
+    print('belief: ',belief)
     if belief.prob(belief.max_prob_elt()) > .99:
         return belief.max_prob_elt()
   

@@ -1,7 +1,7 @@
 import sys
 import math
 import os.path
-import time
+import time 
 
 from soar.robot.pioneer import PioneerRobot
 from soar.hooks import tkinter_hook, is_gui, sim_completed
@@ -38,8 +38,7 @@ robotY = y = 0.5
 
 # Distance and Gain for Wall Following
 desired_right = 0.5
-Kp,Ka = (10.0,2.)
-Kr,Kd = (2.5, -6.2)
+Kp,Ka = (4,0.5)
 
 # Maximum "good" sonar reading
 sonar_max = 1.5
@@ -121,11 +120,15 @@ ideal = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2,
 def get_parking_spot(ideal):
     avg = sum(ideal)/float(len(ideal))
     i = len(ideal)-1
+    print('len(idea)', len(ideal))
+    print('avg = ', avg)
     while i>0 and ideal[i]>avg:
         i -= 1
+    print('i=', i)
     j = i
     while j>0 and ideal[j]<avg:
         j -= 1
+    print('j=',j)
     i = j
     while i>0 and ideal[i]>avg:
         i -= 1
@@ -135,21 +138,12 @@ def get_parking_spot(ideal):
 def on_load():
     robot.parking_spot = get_parking_spot(ideal)
     robot.confident = False
-    robot.rotate = False
-    robot.park = False
-    robot.back_ward = False
-    robot.get_table = True
-    robot.get_order = False
-    robot.got_order = False
-    robot.get_drink = False
-    robot.got_drink = False
-    robot.deliver = False
-    robot.delivered = False
-    robot.in_park = False
+    robot.number_drinks = 0
+    robot.state = 'Localize'
+    #robot.state = 'Parked-got order'
     robot.table = 1
     robot.bar = 2
     robot.direction = 1
-    robot.number_drinks = 0
     if not (hasattr(robot,'g') and robot.g.winfo_exists()):
         robot.g = tkinter_hook(beliefGraph.Grapher(ideal))
         robot.nS = num_states
@@ -173,6 +167,8 @@ def on_load():
     robot.table_location = robot.table_state * width + x_min
     robot.bar_state = get_desired_table_state(ideal, robot.bar)
     robot.bar_location = robot.bar_state * width + x_min
+    print(robot.bar_state)
+    print(robot.bar_location)
     robot.position_delta = 0
     
 def get_desired_table_state(ideal, table):
@@ -202,77 +198,93 @@ def go_to_table(x, table_location, width):
     if not theta:
        theta = 0
     e = (desired_right-distance_right)*robot.direction
-    ROTATIONAL_VELOCITY = Kp*e - Ka*theta
+    ROTATIONAL_VELOCITY = Ka*(Kp*e - theta)
+    print('I am this far from table location:', table_location - x)
     if abs(table_location - x) > width*.1:
         robot.fv = FORWARD_VELOCITY * robot.direction
         robot.rv = ROTATIONAL_VELOCITY 
     elif abs(table_location - x) < width*.1:
         robot.fv = 0
-        robot.back_ward = False
-        robot.rotate = True
-        robot.get_order = True
-        if robot.got_drink:
-            robot.deliver = True          
+        if robot.state == 'Go to table-get order':
+            robot.state = 'Park-get order'
+        elif robot.state =='Go to table-deliver':
+            robot.state = 'Park-deliver'
+            
 
-def park(robot_angle, sonars, table):
-    if abs(robot_angle - 3.14/2) > .09 and not robot.park:
+def park(robot_angle, sonars):
+    if abs(robot_angle - 3.14/2) > .09:
         robot.rv = .4
         robot.fv = 0 
     else:
-        robot.rotate = False
-        robot.park = True
-        if robot.park:
-            if sonars[4] > .3:
-                robot.fv = .4
-                robot.rv = 0 
-            else:
-                robot.fv = 0
-                robot.rv = 0
-                robot.in_park = True
-                if table:
-                    if not robot.got_order:
-                        
-                        message = "How many drinks would you like? Please raise your fingers."
-                        os.system('espeak "{}"'.format(message))
-                        time.sleep(2)
-                        while robot.number_drinks == 0:
-                            file = open("refills.txt", "r")
-                            robot.number_drinks = int(file.read())
-                        message = "Currently fetching" + str(robot.number_drinks) + "drinks."
-                        os.system('espeak "{}"'.format(message))
-                        time.sleep(2)
-
-                        robot.got_order = True
-                        robot.get_order = False
-                    elif robot.deliver:
-                        message = "Here are your drinks. Enjoy!"
-                        os.system('espeak "{}"'.format(message))
-                        time.sleep(3)
-                        robot.delivered = True
+        if sonars[4] > .3:
+            robot.fv = .4
+            robot.rv = 0 
+        else:
+            robot.fv = 0
+            robot.rv = 0
+            robot.in_park = True
+            print('I am taking order npw')
+            if robot.state == 'Park-get order':
+                message = "How many drinks would you like? Please raise your fingers."
+                os.system('espeak "{}"'.format(message))
+                #time.sleep(2)
+                if robot.number_drinks == 0:
+                    file = open("/home/pi/Desktop/final/src/refills.txt", "r") #change this
+                    str_num = file.read()
+                    if str_num != "":
+                        robot.number_drinks = int(str_num)
                 else:
-                    message = "Customers at table " + str(robot.table_state) + " want " + str(robot.number_drinks) + " drinks."
+                    message = "Currently fetching" + str(robot.number_drinks) + "drinks."
                     os.system('espeak "{}"'.format(message))
-                    time.sleep(5) 
-                    robot.got_drink = True
-                robot.back_ward = True
-                
+                    #time.sleep(2)
+                    robot.state = 'Parked-got order'
+            elif robot.state == 'Park-get drink':
+                message = "Customers at table " + str(robot.table) + "want " + str(robot.number_drinks) + " drinks."
+                os.system('espeak "{}"'.format(message))
+                time.sleep(5)
+                robot.state = 'Parked-got drink'
+            elif robot.state == 'Park-deliver':
+                message = "Here are your drinks. Enjoy!"
+                os.system('espeak "{}"'.format(message))
+                time.sleep(3)
+                robot.state = 'Parked-delivered'
+
 def get_out(robot_angle, sonars):
     try:
-        if not robot.rotate and sonars[4] < .7 and robot.in_park and not robot.rotate:
-            robot.fv = -.4
+        if sonars[4] < .7 and (robot.state == 'Parked-got order' or robot.state == 'Parked-got drink' or robot.state == 'Parked-delivered'):
+            robot.fv = -.2
             robot.rv = 0
-        else:
-            if abs(robot_angle) > .09:
-                robot.rotate = True
-                robot.rv = -.4
+            print('Im backing out')
+        elif sonars[4] >= .7 and (robot.state == 'Parked-got order' or robot.state == 'Parked-got drink' or robot.state == 'Parked-delivered'):
+            robot.fv = 0
+            robot.rv = 0 
+            if robot.state == 'Parked-got order':
+                robot.state = 'Parked-got order rotate'
+                #robot.state = 'Go to bar-get drink'
+            elif robot.state == 'Parked-got drink':
+                robot.state = 'Parked-got drink rotate'
+                #robot.state = 'Go to table-deliver'
+            elif robot.state == 'Parked-delivered':
+                robot.state = 'Parked-delivered rotate'
+                #robot.state = 'Go to start'
+        elif robot.state == 'Parked-got order rotate' or robot.state == 'Parked-got drink rotate' or robot.state == 'Parked-delivered rotate':
+            print('Im rotating')
+            print(robot_angle)
+            if abs(robot_angle) > 1:
+                robot.rv = -.1
                 robot.fv = 0
             else:
                 robot.rv = 0
                 robot.fv = 0
-                robot.rotate = False
-                robot.in_park = False
+                if robot.state == 'Parked-got order rotate':
+                    robot.state = 'Go to bar-get drink'
+                elif robot.state == 'Parked-got drink rotate':
+                    robot.state = 'Go to table-deliver'
+                elif robot.state == 'Parked-delivered rotate':
+                    robot.state = 'Go to start'
     except:
         return
+
             
 def go_to_bar(x, bar_location, width):
     robot.direction = (bar_location - x)/abs(bar_location - x)
@@ -280,14 +292,15 @@ def go_to_bar(x, bar_location, width):
     if not theta:
        theta = 0
     e = (desired_right-distance_right)*robot.direction
-    ROTATIONAL_VELOCITY = Kp*e - Ka*theta
+    ROTATIONAL_VELOCITY = Ka*(Kp*e - theta)
     if abs(robot.bar_location - x) > width*.1:
         robot.fv = FORWARD_VELOCITY * robot.direction
         robot.rv = ROTATIONAL_VELOCITY
+        print("fv", robot.fv, "rv", robot.rv, "e", e, "theta", theta, "direction", robot.direction, "distance right", distance_right, "desired right", desired_right)
     elif abs(robot.bar_location - x) < width*.1:
         robot.fv = 0
-        robot.rotate = True
-        robot.get_drink = True
+        robot.rv = 0
+        robot.state = 'Park-get drink'
 
 def go_to_start(x, start_location, width):
     robot.direction = (start_location - x)/abs(start_location - x)
@@ -295,7 +308,7 @@ def go_to_start(x, start_location, width):
     if not theta:
        theta = 0
     e = (desired_right-distance_right)*robot.direction
-    ROTATIONAL_VELOCITY = Kp*e - Ka*theta
+    ROTATIONAL_VELOCITY = Ka*(Kp*e - theta)
     if abs(robot.bar_location - x) > width*.1:
         robot.fv = FORWARD_VELOCITY * robot.direction
         robot.rv = ROTATIONAL_VELOCITY #* robot.direction
@@ -303,6 +316,7 @@ def go_to_start(x, start_location, width):
         robot.fv = 0
         robot.rv = 0
         print('My job is done!')
+        robot.state == 'Done'
 
 
 def on_step(step_duration):
@@ -310,35 +324,35 @@ def on_step(step_duration):
     (px, py, ptheta) = robot.pose
     width = (x_max - x_min)/(num_states-1)
     if robot.confident:
-        if not robot.get_order and not robot.back_ward:
+        print(robot.state)
+        if robot.state == 'Go to table-get order': 
             go_to_table(robot.pose.x+robot.position_delta, robot.table_location, width)
-        elif not robot.in_park and robot.get_order: 
-            park(robot.pose[2], sonars, True)
-        elif robot.in_park and not robot.get_drink: 
+        elif robot.state == 'Park-get order': 
+            park(robot.pose[2], sonars)
+        elif robot.state[:16] == 'Parked-got order': 
             get_out(robot.pose[2], sonars)
-        elif robot.got_order and not robot.get_drink:
+        if robot.state == 'Go to bar-get drink':
             go_to_bar(robot.pose.x+robot.position_delta, robot.bar_location, width)
-        elif robot.rotate and robot.get_drink:
-            park(robot.pose[2], sonars, False)
-##        else:
-##            print('yuhu')
-        elif robot.in_park and robot.got_drink:
+        elif robot.state == 'Park-get drink':
+            park(robot.pose[2], sonars)
+        elif robot.state[:16] == 'Parked-got drink':
             get_out(robot.pose[2], sonars)
-        elif robot.got_drink and not robot.delivered:
+        elif robot.state == 'Go to table-deliver':
             go_to_table(robot.pose.x+robot.position_delta, robot.table_location, width)
-        elif not robot.in_park and robot.deliver:
-            park(robot.pose[2], sonars, True)
-        elif robot.delivered and robot.in_park:
+        elif robot.state == 'Park-deliver':  
+            park(robot.pose[2], sonars)
+        elif robot.state[:16] == 'Parked-delivered': 
             get_out(robot.pose[2], sonars)
-        elif robot.delivered and not robot.in_park:
-            start_location = 0
+        elif robot.state == 'Go to start':
+            start_location = .5
             go_to_start(robot.pose.x+robot.position_delta, start_location, width)
-        else:
+        elif robot.state == 'Done':
             message = "I'm done."
             os.system('espeak "{}"'.format(message))
+            robot.fv = 0
+            robot.rv = 0
         return
 
-           
     # Quality metric.  Important to do this before we update the belief state, because
     # it is always a prediction
     if not REAL_ROBOT:
@@ -375,6 +389,7 @@ def on_step(step_duration):
     (location, robot.confident) = confident_location(robot.estimator.belief)
     if robot.confident:
         robot.position_delta = (location*width+x_min) - robot.pose.x
+        robot.state = 'Go to table-get order'
         print("location", location, "pos x", robot.pose.x, "delta", robot.position_delta)
     # GRAPHICS
     if robot.g is not None:
@@ -387,7 +402,7 @@ def on_step(step_duration):
     if not theta:
        theta = 0
     e = desired_right-distance_right
-    ROTATIONAL_VELOCITY = Kp*e - Ka*theta
+    ROTATIONAL_VELOCITY = Ka*(Kp*e - theta)
     robot.fv = FORWARD_VELOCITY * robot.direction
     robot.rv = ROTATIONAL_VELOCITY 
 ##    robot.rv = 1
